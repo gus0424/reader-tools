@@ -24,9 +24,11 @@ def open_file():
     with open(file_path, "r", encoding='cp932', errors='ignore') as file:
         contents = file.read()
     
-    index = contents.find("</head>")
-    if index != -1:
-        headContent = """
+    
+    headContent = """
+    <!DOCTYPE html>
+    <html>
+    <head>
 <!-- Mobile properties -->
   <meta name="HandheldFriendly" content="True">
   <meta name="MobileOptimized" content="320">
@@ -64,16 +66,13 @@ def open_file():
 
   <link type="text/css" href="css/article.053deb6b9728571514ad.css" rel="stylesheet" />
   <link type="text/css" href="css/cite-box.css" rel="stylesheet" />
+  </head>
+  <body>
 
-        """
-        contents = contents[:index] + headContent + contents[index:]
-    else:
-        messagebox.showerror('Error', 'Incorrect File format : Missing </head>')
-        window.destroy()
-
-    index = contents.find("</body>")
-    if index != -1:
-        bodyContent = """
+    """
+    
+    
+    bodyContent = """
 
 
 
@@ -123,12 +122,12 @@ def open_file():
     window.ncbi.pmc.articlePage.init({ pageURL: '/pmc/articles/PMC8193482/', citeCookieName: 'pmc-cf' });
   </script>
   <script type="text/javascript" src="js/content2.js"> </script>
+  </body>
+  </html>
 
         """
-        contents = contents[:index] + bodyContent + contents[index:]
-    else:
-        messagebox.showerror('Error', 'Incorrect File format : Missing </body>')
-        window.destroy()
+
+
     refIndex = -2
     refText = ["REFERENCES","References","references"]
 
