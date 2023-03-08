@@ -2,8 +2,11 @@ import tkinter as tk
 from tkinter import filedialog
 from tkinter import messagebox
 import webbrowser
+import re
+from bs4 import BeautifulSoup as b
 # import json as w
-debug = True
+debug = False
+old_strategy = False
 # Create the tkinter window
 window = tk.Tk()
 
@@ -74,7 +77,26 @@ def open_file():
     index = contents.find("</body>")
     if index != -1:
         bodyContent = """
+  <!-- End of References -->
+  <div id="body-link-poppers"><span></span></div>
+  <script type="text/javascript">
+    var nwds_version = "1.1.9-2";
 
+    var meta_nwds_ver = document.createElement('meta');
+    meta_nwds_ver.name = 'ncbi_nwds_ver';
+    meta_nwds_ver.content = nwds_version;
+    document.getElementsByTagName('head')[0].appendChild(meta_nwds_ver);
+
+    var meta_nwds = document.createElement('meta');
+    meta_nwds.name = 'ncbi_nwds';
+    meta_nwds.content = 'yes';
+    document.getElementsByTagName('head')[0].appendChild(meta_nwds);
+
+    var alertsUrl = "js/alerts.js";
+    if (typeof ncbiBaseUrl !== 'undefined') {
+      alertsUrl = ncbiBaseUrl + alertsUrl;
+    }
+  </script>
 
 
   <!-- JavaScript -->
@@ -144,79 +166,112 @@ def open_file():
     
     head = contents[:contents.find("</head>")]
     body = contents[contents.find("</head>"):refIndex]
-    refContent = contents[refIndex:contents.find("</body>")]
-    theRest = contents[contents.find("</body>"):]
+    refContent = contents[refIndex:contents.find("<!-- End of References -->")]
+    theRest = contents[contents.find("<!-- End of References -->"):]
 
-
-
-    i = 0
-    
-    lastRef = False
-    refSkip = False
-    while 1:
-        i+=1
-        strI = str(i)
-        strNextI = str(i+1)
-        refContentIndexBegin = refContent.find("""<li data-list-text="["""+strI+"""]">""")
-        if debug : print("Iteration : "+strI+",  refContentIndexBegin :"+str(refContentIndexBegin))
-        if body.find("["+strI+"]") == -1: #no more ref
-            if i == 1:
+    if(old_strategy):
+        i = 0
+        lastRef = False
+        refSkip = False
+        while True:
+            i+=1
+            strI = str(i)
+            strNextI = str(i+1)
+            refContentIndexBegin = refContent.find("""<li data-list-text="["""+strI+"""]">""")
+            if debug : print("Iteration : "+strI+",  refContentIndexBegin :"+str(refContentIndexBegin))
+            if body.find("["+strI+"]") == -1: #no more ref
+              if i == 1:
                 messagebox.showerror("Error","Reference format is incorrect or is init with more than [1]")
                 window.destroy()
-            break
+              break
           
-        elif body.find("["+strNextI+"]") == -1:
-            lastRef = True
+            elif body.find("["+strNextI+"]") == -1:
+              lastRef = True
         
 
-        if refContentIndexBegin == -1 and i == 1:
-            if messagebox.askyesno("Error","Cannot phase given reference format /n Do you want to continue without reference POP-UP"):
+            if refContentIndexBegin == -1 and i == 1:
+              if messagebox.askyesno("Error","Cannot phase given reference format /n Do you want to continue without reference POP-UP"):
                 refSkip = True
-            else:
+              else:
                 window.destroy()
         
-        if not refSkip:
-          injectRef = "[<a href='#ref"+strI+"' rid='ref"+strI+"' class='bibr popnode' role='button' aria-expanded='false' aria-haspopup='true'>"+strI+"</a>]"
+            if not refSkip:
+              injectRef = "[<a href='#ref"+strI+"' rid='ref"+strI+"' class='bibr popnode' role='button' aria-expanded='false' aria-haspopup='true'>"+strI+"</a>]"
 
-          body.replace("["+strI+"]",injectRef)
+              body.replace("["+strI+"]",injectRef)
 
-          refPlaceHolder1 = "<div class='ref-cit-blk half_rhythm' id='ref"+strI+"'>"+strI+". <span class='element-citation'>"
-          refPlaceHolder2 = "</span></div><br>"
-          refCollector = ""
-          if lastRef:
-              lastRefPart = refContent[refContentIndexBegin:]
-              lastRefPart = lastRefPart[:lastRefPart.find("</li>")]
+              refPlaceHolder1 = "<div class='ref-cit-blk half_rhythm' id='ref"+strI+"'>"+strI+". <span class='element-citation'>"
+              refPlaceHolder2 = "</span></div><br>"
+              refCollector = ""
+              if lastRef:
+                lastRefPart = refContent[refContentIndexBegin:]
+                lastRefPart = lastRefPart[:lastRefPart.find("</li>")]
 
-              refContent.replace(lastRefPart,refPlaceHolder1+lastRefPart+refPlaceHolder2)
-              refCollector = refPlaceHolder1+lastRefPart+refPlaceHolder2 # for debugging purpose
-          else:
-              refContentIndexEnd = refContent.find("""</li><li data-list-text="["""+strNextI+"""]">""")
-              if debug : print(" refContentIndexEnd :"+str(refContentIndexEnd))
-              refPart = refContent[refContentIndexBegin:refContentIndexEnd]
-              refContent.replace(refPart,refPlaceHolder1+refPart+refPlaceHolder2)
+                refContent.replace(lastRefPart,refPlaceHolder1+lastRefPart+refPlaceHolder2)
+                refCollector = refPlaceHolder1+lastRefPart+refPlaceHolder2 # for debugging purpose
+              else:
+                refContentIndexEnd = refContent.find("""</li><li data-list-text="["""+strNextI+"""]">""")
+                if debug : print(" refContentIndexEnd :"+str(refContentIndexEnd))
+                refPart = refContent[refContentIndexBegin:refContentIndexEnd]
+                refContent.replace(refPart,refPlaceHolder1+refPart+refPlaceHolder2)
 
               refCollector = refPlaceHolder1+refPart+refPlaceHolder2 # for debugging purpose
 
 
-          if debug:
-            if lastRef: messagebox.showinfo("Debug","Current index : "+strI+", \n This is the last reference index  \n\n ref text point preview from : "+str(body.find(injectRef)-5)+" to "+str(body.find(injectRef)+5)+":\n\n"+body[body.find(injectRef)-5:body.find(injectRef)+5]+"\n\n the ref collection preview : \n\n"+refCollector)
-            else: messagebox.showinfo("Debug","Current index : "+strI+" \n ref text point preview: :\n\n"+body[body.find(injectRef)-5:body.find(injectRef)+5]+"\n\n the ref collection preview : \n\n"+refCollector)
+              if debug:
+                if lastRef: messagebox.showinfo("Debug","Current index : "+strI+", \n This is the last reference index  \n\n ref text point preview from : "+str(body.find(injectRef)-5)+" to "+str(body.find(injectRef)+5)+":\n\n"+body[body.find(injectRef)-5:body.find(injectRef)+5]+"\n\n the ref collection preview : \n\n"+refCollector)
+                else: messagebox.showinfo("Debug","Current index : "+strI+" \n ref text point preview: :\n\n"+body[body.find(injectRef)-5:body.find(injectRef)+5]+"\n\n the ref collection preview : \n\n"+refCollector)
 
 
-
-    finalDoc = head+body+refContent+theRest
-    print(finalDoc)
-
-
+#   [<a href="#ref1" rid="ref1" class=" bibr popnode" role="button" aria-expanded="false" aria-haspopup="true">1</a>]
+    body = re.sub(r'\[(\d+)\]', r"[<a href='#ref\1' rid='ref\1' class='bibr popnode' role='button' aria-expanded='false' aria-haspopup='true'>\1</a>]", body)
     
-    print("header : "+head)
-    print("body :"+body)
-    print("refPart :"+refContent)
-    print("the rest"+theRest)
+    # """</li><li data-list-text=\[(\d+)\]>"""
+    # refContent = re.sub(r'\[(\d+)\]\s+(.+)', r'<div id="#ref\1">[\1] \2</div>', refContent)
 
-    f = open("file2.html", "a")
+    # Regular expression to match the list items
+    li_regex = r'<li data-list-text="\[(\d+)\]">\s*<p.*?>(.*?)<\/p>\s*<\/li>'
+
+# Function to replace the list items with the desired output
+  
+# Use regular expressions to replace the list items
+    references = b(refContent, 'html.parser')
+
+# add div and span tags
+    refs = references.ol.find_all('li')
+    for i, ref in enumerate(refs, start=1):
+        ref_id = f"ref{i}"
+        ref['data-list-text'] = f"[{i}]"
+        div = references.new_tag('div', attrs={'class': 'ref-cit-blk half_rhythm', 'id': ref_id})
+        ref.wrap(div)
+        span = references.new_tag('span', attrs={'class': 'element-citation'})
+        p = ref.find('p')
+        p.wrap(span)
+
+    print(references)
+
+    finalDoc = head+body+str(references)+theRest
+    
+    if debug:
+      print("header : "+head)
+      print("body :"+body)
+      print("refPart :"+references)
+      print("the rest"+theRest)
+      print(finalDoc)
+      
+      f = open("file4.html", "w")
+      f.write(str(references))
+      f.close()
+
+
+      f = open("file5.html", "w")
+      f.write(theRest)
+      f.close()
+
+    f = open("file2.html", "w")
     f.write(finalDoc)
     f.close()
+
 
     url = "file2.html"
     webbrowser.open(url,new=2)
