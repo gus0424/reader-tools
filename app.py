@@ -247,6 +247,7 @@ def open_file():
         span = references.new_tag('span', attrs={'class': 'element-citation'})
         p = ref.find('p')
         p.wrap(span)
+        ref.insert(0, f"{i}. ")
 
     print(references)
 
