@@ -225,6 +225,15 @@ def open_file():
 
 #   [<a href="#ref1" rid="ref1" class=" bibr popnode" role="button" aria-expanded="false" aria-haspopup="true">1</a>]
     body = re.sub(r'\[(\d+)\]', r"[<a href='#ref\1' rid='ref\1' class='bibr popnode' role='button' aria-expanded='false' aria-haspopup='true'>\1</a>]", body)
+
+
+
+
+
+# Define the regular expression pattern to find pattern with "[ ]" with string inside
+    pattern = r'\[(.*?)\]'
+
+   
     
     # """</li><li data-list-text=\[(\d+)\]>"""
     # refContent = re.sub(r'\[(\d+)\]\s+(.+)', r'<div id="#ref\1">[\1] \2</div>', refContent)
